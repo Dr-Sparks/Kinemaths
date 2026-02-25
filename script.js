@@ -596,6 +596,46 @@ if (title && frame && pencilLayer instanceof HTMLCanvasElement) {
     }).format(value);
 
   const unitToLatex = (unit) => unit.replace("µ", "\\mu ");
+  const SI_BASE_UNITS = {
+    length: "m",
+    time: "s",
+    mass: "g",
+  };
+  const SI_PREFIX_EXPONENTS = {
+    length: {
+      km: 3,
+      hm: 2,
+      dam: 1,
+      m: 0,
+      dm: -1,
+      cm: -2,
+      mm: -3,
+      "µm": -6,
+      nm: -9,
+    },
+    time: {
+      ks: 3,
+      hs: 2,
+      das: 1,
+      s: 0,
+      ds: -1,
+      cs: -2,
+      ms: -3,
+      "µs": -6,
+      ns: -9,
+    },
+    mass: {
+      Pg: 15,
+      Tg: 12,
+      Gg: 9,
+      Mg: 6,
+      kg: 3,
+      g: 0,
+      mg: -3,
+      "µg": -6,
+      ng: -9,
+    },
+  };
 
   const queueSIJumpTypeset = () => {
     if (!(siGameStage instanceof HTMLElement)) {
@@ -672,7 +712,7 @@ if (title && frame && pencilLayer instanceof HTMLCanvasElement) {
 
   const updateSIJumpReadouts = () => {
     const scalarCurrent = Number(getSliderCurrentValue("scalar") ?? 0);
-    const scalarShown = scalarCurrent > 0 ? `${scalarCurrent}` : `${scalarCurrent}`;
+    const scalarShown = `${scalarCurrent}`;
 
     siJumpState.sliders.forEach((slider) => {
       const valueEl = siJumpState.readoutEls.get(slider.id);
@@ -683,9 +723,18 @@ if (title && frame && pencilLayer instanceof HTMLCanvasElement) {
       const value = slider.values[slider.index];
       if (slider.isScalar) {
         const shown = value > 0 ? `+${value}` : `${value}`;
-        valueEl.textContent = `\\(s = ${shown}\\)`;
+        valueEl.innerHTML = `<span class="si-jump-readout-main">\\(s = ${shown}\\)</span>`;
       } else {
-        valueEl.textContent = `\\(${scalarShown}\\,\\mathrm{${unitToLatex(String(value))}}\\)`;
+        const unit = String(value);
+        const exponent = SI_PREFIX_EXPONENTS[slider.id]?.[unit];
+        const baseUnit = SI_BASE_UNITS[slider.id] || unit;
+
+        if (typeof exponent === "number") {
+          const formulaLine = `\\(${scalarShown}\\cdot10^{${exponent}}\\,\\mathrm{${unitToLatex(baseUnit)}}\\)`;
+          valueEl.innerHTML = `<span class="si-jump-readout-main">${formulaLine}</span>`;
+        } else {
+          valueEl.innerHTML = `<span class="si-jump-readout-main">\\(${scalarShown}\\,\\mathrm{${unitToLatex(baseUnit)}}\\)</span>`;
+        }
       }
     });
     queueSIJumpTypeset();
@@ -1314,79 +1363,125 @@ if (title && frame && pencilLayer instanceof HTMLCanvasElement) {
     if (isSIUnits) {
       siSideContent.innerHTML = `
         <article class="side-card">
-          <h3 class="side-title"><strong>SI-Einheiten: Grundlagen</strong></h3>
-          <p class="side-text">
-            SI-Einheiten sind das internationale Standardsystem für physikalische Messgrößen.
-            Dadurch sind Ergebnisse weltweit eindeutig vergleichbar.
-          </p>
-          <ul class="side-list">
-            <li>Länge: \\(\\mathrm{m}\\) (Meter)</li>
-            <li>Masse: \\(\\mathrm{kg}\\) (Kilogramm)</li>
-            <li>Zeit: \\(\\mathrm{s}\\) (Sekunde)</li>
-            <li>Stromstärke: \\(\\mathrm{A}\\) (Ampere)</li>
-            <li>Temperatur: \\(\\mathrm{K}\\) (Kelvin)</li>
-            <li>Stoffmenge: \\(\\mathrm{mol}\\) (Mol)</li>
-            <li>Lichtstärke: \\(\\mathrm{cd}\\) (Candela)</li>
-          </ul>
-          <p class="side-text">
-            Ein <strong>Skalar</strong> ist ein reiner Zahlenfaktor ohne Richtung.
-            In unserem Spiel skaliert er den Wert der gewählten Einheit.
-          </p>
-          <ul class="side-list">
-            <li>Skalar \\(+3\\): dreifacher Wert der Einheit</li>
-            <li>Skalar \\(-2\\): gleicher Betrag, aber negatives Vorzeichen</li>
-          </ul>
-          <p class="side-text">
-            Wichtige Präfixe (Zehnerpotenzen):
-          </p>
-          <ul class="side-list">
-            <li>\\(\\mathrm{M}\\) (Mega) \\(=10^6\\)</li>
-            <li>\\(\\mathrm{k}\\) (kilo) \\(=10^3\\)</li>
-            <li>\\(\\mathrm{d}\\) (dezi) \\(=10^{-1}\\)</li>
-            <li>\\(\\mathrm{c}\\) (zenti) \\(=10^{-2}\\)</li>
-            <li>\\(\\mathrm{m}\\) (milli) \\(=10^{-3}\\)</li>
-            <li>\\(\\mathrm{\\mu}\\) (mikro) \\(=10^{-6}\\)</li>
-            <li>\\(\\mathrm{n}\\) (nano) \\(=10^{-9}\\)</li>
-          </ul>
-        </article>
-        <article class="side-card side-card-practice">
-          <h3 class="side-title"><strong>SI interpretieren und rechnen (einfach)</strong></h3>
-          <p class="side-text">Nutze immer dieselbe 4-Schritt-Regel:</p>
-          <ul class="side-list">
-            <li><strong>1. Größe erkennen:</strong> Länge, Zeit oder Masse?</li>
-            <li><strong>2. Einheit prüfen:</strong> passt sie zum Ziel (z. B. \\(\\mathrm{cm}\\) oder \\(\\mathrm{m}\\))?</li>
-            <li><strong>3. Faktor anwenden:</strong> nur Zehnerpotenzen verschieben.</li>
-            <li><strong>4. Ergebnis schreiben:</strong> Zahl und Einheit immer gemeinsam notieren.</li>
-          </ul>
-          <div class="side-unit-flow" aria-hidden="true">
-            <span class="side-unit-chip">Größe</span>
-            <span class="side-unit-arrow">→</span>
-            <span class="side-unit-chip">Einheit</span>
-            <span class="side-unit-arrow">→</span>
-            <span class="side-unit-chip">Faktor</span>
-            <span class="side-unit-arrow">→</span>
-            <span class="side-unit-chip">Ergebnis</span>
+          <h3 class="side-title"><strong>1) SI-Basiseinheiten</strong></h3>
+          <div class="side-si-base-list" aria-label="SI Basiseinheiten">
+            <div class="side-si-base-item" style="--item-delay: 0s;">
+              <span class="side-si-base-name">Länge</span>
+              <span class="side-si-base-unit">\\(\\mathrm{m}\\) (Meter)</span>
+            </div>
+            <div class="side-si-base-item" style="--item-delay: 0.07s;">
+              <span class="side-si-base-name">Masse</span>
+              <span class="side-si-base-unit">\\(\\mathrm{kg}\\) (Kilogramm)</span>
+            </div>
+            <div class="side-si-base-item" style="--item-delay: 0.14s;">
+              <span class="side-si-base-name">Zeit</span>
+              <span class="side-si-base-unit">\\(\\mathrm{s}\\) (Sekunde)</span>
+            </div>
+            <div class="side-si-base-item" style="--item-delay: 0.21s;">
+              <span class="side-si-base-name">Stromstärke</span>
+              <span class="side-si-base-unit">\\(\\mathrm{A}\\) (Ampere)</span>
+            </div>
+            <div class="side-si-base-item" style="--item-delay: 0.28s;">
+              <span class="side-si-base-name">Temperatur</span>
+              <span class="side-si-base-unit">\\(\\mathrm{K}\\) (Kelvin)</span>
+            </div>
+            <div class="side-si-base-item" style="--item-delay: 0.35s;">
+              <span class="side-si-base-name">Stoffmenge</span>
+              <span class="side-si-base-unit">\\(\\mathrm{mol}\\) (Mol)</span>
+            </div>
+            <div class="side-si-base-item" style="--item-delay: 0.42s;">
+              <span class="side-si-base-name">Lichtstärke</span>
+              <span class="side-si-base-unit">\\(\\mathrm{cd}\\) (Candela)</span>
+            </div>
           </div>
-          <p class="side-eq">\\[1\\,\\mathrm{m}=10^3\\,\\mathrm{mm}\\]</p>
         </article>
-        <article class="side-card side-card-convert">
-          <h3 class="side-title"><strong>Konvertierung intuitiv: \\(2\\,\\mathrm{m}\\to\\mathrm{mm}\\)</strong></h3>
-          <p class="side-text">Von \\(\\mathrm{m}\\) nach \\(\\mathrm{mm}\\): drei Schritte kleiner \\(\\Rightarrow\\times 10^3\\).</p>
-          <div class="side-convert-demo" aria-hidden="true">
-            <div class="side-convert-line">
-              <span class="side-convert-chip">m</span>
-              <span class="side-convert-chip">dm</span>
-              <span class="side-convert-chip">cm</span>
-              <span class="side-convert-chip">mm</span>
+        <article class="side-card">
+          <h3 class="side-title"><strong>2) Präfixe = Potenzen von 10</strong></h3>
+          <p class="side-text">Jedes Präfix bedeutet einen festen Faktor \\(10^n\\).</p>
+          <div class="side-prefix-grid" aria-hidden="true">
+            <div class="side-prefix-item" style="--prefix-delay: 0s;">
+              <span class="side-prefix-symbol">k</span>
+              <span class="side-prefix-name">kilo</span>
+              <span class="side-prefix-power">\\(10^3\\)</span>
+            </div>
+            <div class="side-prefix-item" style="--prefix-delay: 0.08s;">
+              <span class="side-prefix-symbol">h</span>
+              <span class="side-prefix-name">hekto</span>
+              <span class="side-prefix-power">\\(10^2\\)</span>
+            </div>
+            <div class="side-prefix-item" style="--prefix-delay: 0.16s;">
+              <span class="side-prefix-symbol">da</span>
+              <span class="side-prefix-name">deka</span>
+              <span class="side-prefix-power">\\(10^1\\)</span>
+            </div>
+            <div class="side-prefix-item side-prefix-item-base" style="--prefix-delay: 0.24s;">
+              <span class="side-prefix-symbol">-</span>
+              <span class="side-prefix-name">Basis</span>
+              <span class="side-prefix-power">\\(10^0\\)</span>
+            </div>
+            <div class="side-prefix-item" style="--prefix-delay: 0.32s;">
+              <span class="side-prefix-symbol">d</span>
+              <span class="side-prefix-name">dezi</span>
+              <span class="side-prefix-power">\\(10^{-1}\\)</span>
+            </div>
+            <div class="side-prefix-item" style="--prefix-delay: 0.4s;">
+              <span class="side-prefix-symbol">c</span>
+              <span class="side-prefix-name">zenti</span>
+              <span class="side-prefix-power">\\(10^{-2}\\)</span>
+            </div>
+            <div class="side-prefix-item" style="--prefix-delay: 0.48s;">
+              <span class="side-prefix-symbol">m</span>
+              <span class="side-prefix-name">milli</span>
+              <span class="side-prefix-power">\\(10^{-3}\\)</span>
+            </div>
+            <div class="side-prefix-item" style="--prefix-delay: 0.56s;">
+              <span class="side-prefix-symbol">µ</span>
+              <span class="side-prefix-name">mikro</span>
+              <span class="side-prefix-power">\\(10^{-6}\\)</span>
+            </div>
+            <div class="side-prefix-item" style="--prefix-delay: 0.64s;">
+              <span class="side-prefix-symbol">n</span>
+              <span class="side-prefix-name">nano</span>
+              <span class="side-prefix-power">\\(10^{-9}\\)</span>
+            </div>
+          </div>
+          <p class="side-eq">\\[\\text{Präfix-Einheit}=10^n\\cdot\\text{Basiseinheit}\\]</p>
+        </article>
+        <article class="side-card">
+          <h3 class="side-title"><strong>3) Umrechnung: Meter und Gramm</strong></h3>
+          <p class="side-text">Gleiche Präfix-Reihenfolge, andere Basiseinheit.</p>
+          <div class="side-convert-block" aria-hidden="true">
+            <p class="side-convert-label">Länge</p>
+            <div class="side-convert-track">
+              <span class="side-convert-chip">km<br><small>10³</small></span>
+              <span class="side-convert-chip">hm<br><small>10²</small></span>
+              <span class="side-convert-chip">dam<br><small>10¹</small></span>
+              <span class="side-convert-chip side-convert-chip-base">m<br><small>10⁰</small></span>
+              <span class="side-convert-chip">dm<br><small>10⁻¹</small></span>
+              <span class="side-convert-chip">cm<br><small>10⁻²</small></span>
+              <span class="side-convert-chip">mm<br><small>10⁻³</small></span>
+              <span class="side-convert-chip">µm<br><small>10⁻⁶</small></span>
+              <span class="side-convert-chip">nm<br><small>10⁻⁹</small></span>
               <span class="side-convert-dot"></span>
             </div>
-            <div class="side-convert-values">
-              <span class="side-convert-start">2 m</span>
-              <span class="side-convert-arrow">→</span>
-              <span class="side-convert-end">2000 mm</span>
-            </div>
+            <p class="side-eq">\\[2\\,\\mathrm{m}=200\\,\\mathrm{cm}=2000\\,\\mathrm{mm}\\]</p>
           </div>
-          <p class="side-eq">\\[2\\,\\mathrm{m}=2\\cdot 10^3\\,\\mathrm{mm}=2000\\,\\mathrm{mm}\\]</p>
+          <div class="side-convert-block" aria-hidden="true">
+            <p class="side-convert-label">Masse</p>
+            <div class="side-convert-track">
+              <span class="side-convert-chip">kg<br><small>10³</small></span>
+              <span class="side-convert-chip">hg<br><small>10²</small></span>
+              <span class="side-convert-chip">dag<br><small>10¹</small></span>
+              <span class="side-convert-chip side-convert-chip-base">g<br><small>10⁰</small></span>
+              <span class="side-convert-chip">dg<br><small>10⁻¹</small></span>
+              <span class="side-convert-chip">cg<br><small>10⁻²</small></span>
+              <span class="side-convert-chip">mg<br><small>10⁻³</small></span>
+              <span class="side-convert-chip">µg<br><small>10⁻⁶</small></span>
+              <span class="side-convert-chip">ng<br><small>10⁻⁹</small></span>
+              <span class="side-convert-dot side-convert-dot-second"></span>
+            </div>
+            <p class="side-eq">\\[3\\,\\mathrm{g}=3000\\,\\mathrm{mg}=3\\cdot10^6\\,\\mathrm{\\mu g}\\]</p>
+          </div>
         </article>
       `;
       typesetSidePanelMath();
